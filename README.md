@@ -35,7 +35,7 @@ Do you want to host Life OS on your own machine or contribute to the project? Fo
 ### 1. Clone the Repository
 Open your terminal and clone the repository to your local machine:
 ```bash
-git clone https://github.com/your-username/life-os.git
+git clone https://github.com/naman293/Life-OS.git
 cd life-os
 ```
 
