@@ -1,0 +1,206 @@
+/* ============================================================
+   LIFE OS — GLOBAL DESIGN TOKENS
+   Productivity Dashboard: Pastel/Warm Aesthetic (Primary)
+   Sanctuary Dashboard:   Deep Purple/Peach Aesthetic
+   ============================================================ */
+
+/* ── Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap');
+
+/* ── Productivity Theme (default) ── */
+:root {
+  /* -- Neutral Surface -- */
+  --bg-0: #F9F3E4;
+  --bg-1: #ECE6D8;
+  --bg-2: #FEFBEF;
+  --border-0: #E4DDCF;
+
+  /* -- Text -- */
+  --text-0: #121210;
+  --text-1: #4E4D4A;
+  --text-2: #8B867C;
+
+  /* -- Sidebar -- */
+  --sidebar-bg: #121210;
+  --sidebar-hover: #262524;
+  --sidebar-active: #2F2E2B;
+  --sidebar-text: #F9F3E4;
+  --sidebar-text-muted: #8B867C;
+  --sidebar-width: 220px;
+
+  /* -- Accent Colors (Pastel) -- */
+  --accent-yellow: #F3D76A;
+  --accent-yellow-light: #FBF0BA;
+  --accent-pink: #F7B6DA;
+  --accent-pink-light: #FCDFF1;
+  --accent-blue: #ADC4EC;
+  --accent-blue-light: #D6E4F8;
+  --accent-blue-2: #748DAE;
+  --accent-lavender: #75637B;
+  --accent-lavender-light: #C4B3CA;
+  --accent-mauve: #C18CA4;
+  --accent-mauve-light: #E8C5D4;
+  --accent-mint: #A8D8B9;
+  --accent-mint-light: #D1EDD9;
+  --accent-peach: #F0B89A;
+  --accent-peach-light: #F9D9CA;
+
+  /* -- Semantic -- */
+  --success: #A8D8B9;
+  --warning: #F3D76A;
+  --danger: #E8927A;
+  --info: #ADC4EC;
+
+  /* -- Typography -- */
+  --font-sans: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Inter', system-ui, sans-serif;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* -- Type Scale -- */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 16px;
+  --text-lg: 18px;
+  --text-xl: 24px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+  --text-kpi: 40px;
+
+  /* -- Spacing -- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 40px;
+  --space-8: 48px;
+
+  /* -- Radius -- */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-card: 16px;
+  --radius-lg: 20px;
+  --radius-xl: 24px;
+  --radius-chip: 999px;
+
+  /* -- Elevation / Shadows -- */
+  --shadow-1: 0 1px 4px rgba(18,18,16,0.06), 0 4px 16px rgba(18,18,16,0.04);
+  --shadow-2: 0 2px 8px rgba(18,18,16,0.08), 0 8px 32px rgba(18,18,16,0.06);
+  --shadow-3: 0 4px 16px rgba(18,18,16,0.10), 0 16px 48px rgba(18,18,16,0.08);
+
+  /* -- Transitions -- */
+  --transition-fast: 120ms ease;
+  --transition-base: 200ms ease;
+  --transition-slow: 350ms cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* -- Top bar -- */
+  --topbar-height: 64px;
+}
+
+/* ── Sanctuary Theme (applied via data-theme="sanctuary") ── */
+[data-theme="sanctuary"] {
+  --bg-0: #2D2A4E;
+  --bg-1: #3A3660;
+  --bg-2: #241F3F;
+  --border-0: #4A4670;
+
+  --text-0: #FAF7FF;
+  --text-1: #C9C4E0;
+  --text-2: #8B86A8;
+
+  --sidebar-bg: #1E1B38;
+  --sidebar-hover: #2D2A4E;
+  --sidebar-active: #3A3660;
+  --sidebar-text: #FAF7FF;
+  --sidebar-text-muted: #8B86A8;
+
+  --accent-yellow: #FAD2A1;
+  --accent-pink: #F0A0B4;
+  --accent-blue: #8CA8D4;
+  --accent-lavender: #B8A8D8;
+  --accent-mint: #A0C8B4;
+
+  --font-sans: 'Manrope', system-ui, sans-serif;
+  --font-display: 'Manrope', system-ui, sans-serif;
+
+  --radius-card: 24px;
+  --radius-lg: 32px;
+  --radius-xl: 40px;
+
+  --shadow-1: 0 2px 12px rgba(0,0,0,0.3), 0 8px 32px rgba(0,0,0,0.2);
+  --shadow-2: 0 4px 24px rgba(0,0,0,0.4), 0 16px 48px rgba(0,0,0,0.25);
+  --shadow-3: 0 8px 40px rgba(0,0,0,0.5), 0 24px 64px rgba(0,0,0,0.3);
+}
+
+/* ── Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-0);
+  color: var(--text-0);
+  font-size: var(--text-base);
+  font-weight: var(--fw-regular);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── Utility Classes ── */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+  white-space: nowrap;
+}
+
+/* ── Reduced Motion ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-0);
+  border-radius: var(--radius-chip);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-2);
+}
+
+/* ── Animations ── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

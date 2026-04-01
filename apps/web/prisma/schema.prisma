@@ -1,0 +1,131 @@
+// This is your Prisma schema file for Life OS
+// Database: PostgreSQL
+
+generator client {
+  provider        = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Enums ──────────────────────────────────────────────────
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum EventStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum LogState {
+  DONE
+  SKIPPED
+}
+
+// ── Models ─────────────────────────────────────────────────
+
+// User: keyed by Clerk user ID
+model User {
+  id          String   @id                   // Clerk user ID (e.g. "user_abc123")
+  displayName String
+  email       String   @unique
+  avatarUrl   String?
+  preferences Json     @default("{}")         // stores: { weekStart, reducedMotion, notifications, theme }
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tasks  Task[]
+  events Event[]
+  habits Habit[]
+
+  @@map("users")
+}
+
+// Task: a single actionable item
+model Task {
+  id           String     @id @default(cuid())
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title        String
+  notes        String?
+  status       TaskStatus @default(TODO)
+  priority     Priority?
+  dueAt        DateTime?
+  scheduledAt  DateTime?
+  durationMins Int?
+  tags         String[]
+  colourId     String?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@index([userId])
+  @@index([userId, status])
+  @@index([userId, dueAt])
+  @@map("tasks")
+}
+
+// Event: a time-blocked calendar entry
+model Event {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  startAt    DateTime
+  endAt      DateTime
+  notes      String?
+  status     EventStatus @default(SCHEDULED)
+  tags       String[]
+  colourId   String?
+  recurrence String?     // RRULE string e.g. "FREQ=DAILY;INTERVAL=1"
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([userId])
+  @@index([userId, startAt])
+  @@map("events")
+}
+
+// Habit: a recurring behavior to track
+model Habit {
+  id         String     @id @default(cuid())
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String
+  frequency  String     @default("daily")   // "daily" | "weekdays" | "custom"
+  daysOfWeek Int[]                          // 0=Sun … 6=Sat; empty = all days
+  colourId   String?
+  icon       String?
+  archived   Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  logs HabitLog[]
+
+  @@index([userId])
+  @@map("habits")
+}
+
+// HabitLog: a single day's completion record for a habit
+model HabitLog {
+  id      String   @id @default(cuid())
+  habitId String
+  habit   Habit    @relation(fields: [habitId], references: [id], onDelete: Cascade)
+  date    String   // "YYYY-MM-DD" — stored as string for easy querying without TZ issues
+  state   LogState
+
+  @@unique([habitId, date])
+  @@index([habitId])
+  @@map("habit_logs")
+}
