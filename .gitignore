@@ -40,3 +40,6 @@ logs/
 
 # Turbo
 .turbo/
+
+# Netlify build output
+.netlify
