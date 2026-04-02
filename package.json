@@ -1,6 +1,7 @@
 {
   "name": "life-os-monorepo",
   "private": true,
+  "packageManager": "npm@11.8.0",
   "scripts": {
     "dev": "turbo run dev",
     "build": "turbo run build",

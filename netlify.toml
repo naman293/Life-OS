@@ -1,0 +1,7 @@
+[build]
+  base = "/"
+  command = "npx turbo run build --filter=web..."
+  publish = "apps/web/.next"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
