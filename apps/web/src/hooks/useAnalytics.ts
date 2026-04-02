@@ -1,9 +1,13 @@
 import useSWR from "swr";
+import { useAuth } from "@clerk/nextjs";
 
-const fetcher = (url: string) => fetch(url).then((r) => {
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
-});
+const fetcher = (args: string | [string, string]) => {
+  const url = Array.isArray(args) ? args[0] : args;
+  return fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`API error: ${r.status}`);
+    return r.json();
+  });
+};
 
 export interface HabitStat {
   id: string;
@@ -31,10 +35,12 @@ export interface AnalyticsData {
 }
 
 export function useAnalytics(range: "daily" | "weekly" | "monthly" = "weekly") {
+  const { userId, isLoaded } = useAuth();
+  const url = `/api/analytics?range=${range}`;
   const { data, error, isLoading } = useSWR<AnalyticsData>(
-    `/api/analytics?range=${range}`,
+    isLoaded && userId ? [url, userId] : null,
     fetcher,
     { refreshInterval: 30000 } // auto-refresh every 30s
   );
-  return { analytics: data ?? null, error, isLoading };
+  return { analytics: data ?? null, error, isLoading: isLoading || !isLoaded };
 }

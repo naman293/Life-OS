@@ -1,10 +1,14 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { useCallback } from "react";
+import { useAuth } from "@clerk/nextjs";
 
-const fetcher = (url: string) => fetch(url).then((r) => {
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
-});
+const fetcher = (args: string | [string, string]) => {
+  const url = Array.isArray(args) ? args[0] : args;
+  return fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`API error: ${r.status}`);
+    return r.json();
+  });
+};
 
 export interface CalendarEvent {
   id: string;
@@ -22,17 +26,21 @@ export interface CalendarEvent {
 }
 
 export function useEvents(from?: string, to?: string) {
+  const { userId, isLoaded } = useAuth();
   const params = new URLSearchParams();
   if (from) params.set("from", from);
   if (to)   params.set("to", to);
   const url = `/api/events${params.toString() ? `?${params}` : ""}`;
 
-  const { data, error, isLoading } = useSWR<CalendarEvent[]>(url, fetcher);
-  return { events: data ?? [], error, isLoading };
+  const { data, error, isLoading } = useSWR<CalendarEvent[]>(
+    isLoaded && userId ? [url, userId] : null, 
+    fetcher
+  );
+  return { events: data ?? [], error, isLoading: isLoading || !isLoaded };
 }
 
 // Helper to reliably trigger optimistic UI without needing the exact API key path
-const isEventKey = (key: unknown) => typeof key === "string" && key.startsWith("/api/events");
+const isEventKey = (key: unknown) => Array.isArray(key) && key[0].startsWith("/api/events");
 
 export function useCreateEvent() {
   return useCallback(async (body: Omit<CalendarEvent, "id" | "userId" | "createdAt" | "updatedAt">) => {

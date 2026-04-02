@@ -1,10 +1,14 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { useCallback } from "react";
+import { useAuth } from "@clerk/nextjs";
 
-const fetcher = (url: string) => fetch(url).then((r) => {
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
-});
+const fetcher = (args: string | [string, string]) => {
+  const url = Array.isArray(args) ? args[0] : args;
+  return fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`API error: ${r.status}`);
+    return r.json();
+  });
+};
 
 // Shape mirroring Prisma Task model (JS-friendly casing)
 export interface Task {
@@ -39,9 +43,13 @@ function buildUrl(filter: TaskFilter): string {
 }
 
 export function useTasks(filter: TaskFilter = {}) {
+  const { userId, isLoaded } = useAuth();
   const url = buildUrl(filter);
-  const { data, error, isLoading } = useSWR<Task[]>(url, fetcher);
-  return { tasks: data ?? [], error, isLoading };
+  const { data, error, isLoading } = useSWR<Task[]>(
+    isLoaded && userId ? [url, userId] : null, 
+    fetcher
+  );
+  return { tasks: data ?? [], error, isLoading: isLoading || !isLoaded };
 }
 
 export function useCreateTask() {
@@ -54,7 +62,7 @@ export function useCreateTask() {
     if (!res.ok) throw new Error(await res.text());
     const task = await res.json();
     // Revalidate all tasks keys
-    globalMutate((key: unknown) => typeof key === "string" && key.startsWith("/api/tasks"), undefined, { revalidate: true });
+    globalMutate((key: unknown) => Array.isArray(key) && key[0].startsWith("/api/tasks"), undefined, { revalidate: true });
     return task as Task;
   }, []);
 }
@@ -68,7 +76,7 @@ export function useUpdateTask() {
     });
     if (!res.ok) throw new Error(await res.text());
     const task = await res.json();
-    globalMutate((key: unknown) => typeof key === "string" && key.startsWith("/api/tasks"), undefined, { revalidate: true });
+    globalMutate((key: unknown) => Array.isArray(key) && key[0].startsWith("/api/tasks"), undefined, { revalidate: true });
     return task as Task;
   }, []);
 }

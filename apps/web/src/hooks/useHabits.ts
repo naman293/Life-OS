@@ -1,10 +1,14 @@
 import useSWR, { mutate as globalMutate } from "swr";
 import { useCallback } from "react";
+import { useAuth } from "@clerk/nextjs";
 
-const fetcher = (url: string) => fetch(url).then((r) => {
-  if (!r.ok) throw new Error(`API error: ${r.status}`);
-  return r.json();
-});
+const fetcher = (args: string | [string, string]) => {
+  const url = Array.isArray(args) ? args[0] : args;
+  return fetch(url).then((r) => {
+    if (!r.ok) throw new Error(`API error: ${r.status}`);
+    return r.json();
+  });
+};
 
 export interface Habit {
   id: string;
@@ -27,26 +31,38 @@ export interface HabitLog {
 }
 
 export function useHabits() {
-  const { data, error, isLoading } = useSWR<Habit[]>("/api/habits", fetcher);
-  return { habits: data ?? [], error, isLoading };
+  const { userId, isLoaded } = useAuth();
+  const { data, error, isLoading } = useSWR<Habit[]>(
+    isLoaded && userId ? ["/api/habits", userId] : null, 
+    fetcher
+  );
+  return { habits: data ?? [], error, isLoading: isLoading || !isLoaded };
 }
 
 export function useHabitLogs(habitId: string, week?: string) {
+  const { userId, isLoaded } = useAuth();
   const url = `/api/habits/${habitId}/logs${week ? `?week=${week}` : ""}`;
-  const { data, error, isLoading } = useSWR<HabitLog[]>(habitId ? url : null, fetcher);
-  return { logs: data ?? [], error, isLoading };
+  const { data, error, isLoading } = useSWR<HabitLog[]>(
+    isLoaded && userId && habitId ? [url, userId] : null, 
+    fetcher
+  );
+  return { logs: data ?? [], error, isLoading: isLoading || !isLoaded };
 }
 
 // Fetches ALL logs for ALL habits for the current week in a single call per habit
 // Used to power the weekly grid
 export function useAllHabitLogs(habitIds: string[], week?: string) {
+  const { userId, isLoaded } = useAuth();
   const weekParam = week ?? new Date().toISOString().split("T")[0];
   // Build URLs for all habits
   const keys = habitIds.map((id) => `/api/habits/${id}/logs?week=${weekParam}`);
 
   const results = keys.map((key) => {
     // eslint-disable-next-line react-hooks/rules-of-hooks
-    const { data } = useSWR<HabitLog[]>(key, fetcher);
+    const { data } = useSWR<HabitLog[]>(
+      isLoaded && userId ? [key, userId] : null, 
+      fetcher
+    );
     return data ?? [];
   });
 
@@ -62,7 +78,7 @@ export function useToggleLog() {
     });
     if (!res.ok) throw new Error(await res.text());
     // Revalidate logs for this habit
-    globalMutate((key: unknown) => typeof key === "string" && key.includes(`/api/habits/${habitId}/logs`), undefined, { revalidate: true });
+    globalMutate((key: unknown) => Array.isArray(key) && key[0].includes(`/api/habits/${habitId}/logs`), undefined, { revalidate: true });
     return res.json();
   }, []);
 }

@@ -1,300 +1,163 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useTransitionStore } from '@/lib/transitionStore';
 
-/* ── "Retro-Digital Forge" brand colours ── */
 const BRAND_COLORS = [
-  '#F3D76A', '#F3D76A', // Gold
-  '#A8D8B9', '#A8D8B9', // Mint
-  '#F7B6DA',            // Pink
-  '#ADC4EC',            // Blue
-  '#F0B89A',            // Peach
-  '#121210',            // Charcoal
-  '#FEFBEF', '#FEFBEF', // Cream
-  '#D8CFBE',            // Border grey
+  '#F3D76A', '#A8D8B9', '#F7B6DA', '#ADC4EC', '#F0B89A', '#121210', '#FEFBEF', '#D8CFBE',
 ];
 
-const GRID_COLS   = 8;     // Reduced density for larger, fewer squares
-const GRID_ROWS   = 6;     
-const EXTRA_COUNT = 24;    // Minimal scatter chunks
-const TOTAL_MS    = 2700;  // Extended duration for a slow-mo, graceful float
-
-/* Phases (normalised 0→1): */
-const STRIP_END  = 0.25;  // Detach completes early
-const FADE_START = 0.58;  // Particles start fading beautifully
-const BG_REVEAL  = 0.62;  // Dashboard starts bleeding through
-
-const easeOut = (t: number) => 1 - (1 - t) ** 3;
-
-type Part = {
-  el:    HTMLDivElement;
-  x:     number; y:    number;
-  ox:    number; oy:   number;
-  vx:    number; vy:   number;
-  slipX: number; slipY: number;
-  rot:   number; rotV: number;
-  delay: number;
+const CONFIG = {
+  COLS: 13,
+  ROWS: 11,
+  FORMATION: 500,  
+  SHATTER: 2800,    // REVERTED: Ultra-slow smooth water motion (2.8 seconds)
 };
 
 export function TransitionOverlay() {
   const isExploding = useTransitionStore(s => s.isExploding);
   const reset       = useTransitionStore(s => s.reset);
+  const left        = useTransitionStore(s => s.cardCx);
+  const top         = useTransitionStore(s => s.cardCy);
+  const cardW       = useTransitionStore(s => s.cardW);
+  const cardH       = useTransitionStore(s => s.cardH);
 
-  const overlayRef  = useRef<HTMLDivElement>(null);
-  const cardInRef   = useRef<HTMLDivElement>(null);
-  const hasRun      = useRef(false);
-  const rafRef      = useRef(0);
-  const router      = useRouter();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const overlayRef   = useRef<HTMLDivElement>(null);
+  const curtainRef   = useRef<HTMLDivElement>(null);
+  const pathname     = usePathname();
+  const hasRun       = useRef(false);
 
   useEffect(() => {
     if (!isExploding || hasRun.current) return;
     hasRun.current = true;
 
-    router.prefetch('/');
+    const container = containerRef.current;
+    const overlay   = overlayRef.current;
+    const curtain   = curtainRef.current;
+    if (!container || !overlay || !curtain) return;
 
-    const overlay = overlayRef.current;
-    const cardIn  = cardInRef.current;
-    if (!overlay || !cardIn) return;
+    container.style.display   = 'block';
+    container.style.opacity   = '1';
+    overlay.innerHTML         = '';
+    
+    // START SOLID (Cream) - THIS KEEPS DASHBOARD CLEAN
+    curtain.style.display    = 'block';
+    curtain.style.opacity    = '1';
+    curtain.style.background = '#FEFBEF'; 
 
-    /* ── Show solid cream overlay — dashboard is completely hidden behind it ── */
-    overlay.style.display    = 'block';
-    overlay.style.background = 'radial-gradient(ellipse at 45% 50%, #F9F3E4 0%, #ECE6D8 60%, #DDD5C5 100%)';
+    const cellW = cardW / CONFIG.COLS;
+    const cellH = cardH / CONFIG.ROWS;
+    const diag = Math.sqrt(window.innerWidth**2 + window.innerHeight**2);
 
-    /* ── Navigate to dashboard right away — it pre-loads invisibly behind overlay ── */
-    const navTimer = setTimeout(() => router.replace('/'), 120);
+    const pieces: HTMLDivElement[] = [];
 
-    /* ── Get card's exact position */
-    const rect = cardIn.getBoundingClientRect();
-    const cx   = rect.left + rect.width  / 2;
-    const cy   = rect.top  + rect.height / 2;
-    const cw   = rect.width;
-    const ch   = rect.height;
-    const diagDist = Math.sqrt(window.innerWidth ** 2 + window.innerHeight ** 2) * 0.65;
+    for (let r = 0; r < CONFIG.ROWS; r++) {
+      for (let c = 0; c < CONFIG.COLS; c++) {
+        const p = document.createElement('div');
+        const GAP = 2.5; 
+        const px = left + (c * cellW) + GAP/2;
+        const py = top + (r * cellH) + GAP/2;
+        const pw = cellW - GAP;
+        const ph = cellH - GAP;
 
-    const parts: Part[] = [];
-
-    const cellW = cw / GRID_COLS;
-    const cellH = ch / GRID_ROWS;
-
-    /* ── Grid: larger rectangles ── */
-    for (let row = 0; row < GRID_ROWS; row++) {
-      for (let col = 0; col < GRID_COLS; col++) {
-        const ox = (cx - cw / 2) + col * cellW + cellW * 0.08;
-        const oy = (cy - ch / 2) + row * cellH + cellH * 0.08;
-
-        const dx   = ox - cx;
-        const dy   = oy - cy;
-        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const maxD = Math.sqrt((cw / 2) ** 2 + (ch / 2) ** 2);
+        const cx = left + cardW / 2;
+        const cy = top + cardH / 2;
+        const dx = (px + pw/2) - cx;
+        const dy = (py + ph/2) - cy;
         
-        // Base velocity for float: decelerating physics means we start high and drop to 0
-        const speed = (diagDist / 60) * (0.6 + (dist / maxD) * 0.6);
-        const chaos = (Math.random() - 0.5) * 0.35; // Smoother arrays, less chaos
-        const angle = Math.atan2(dy, dx) + chaos;
+        const angle = Math.atan2(dy, dx);
+        const speed = (diag * 1.35) * (0.8 + Math.random() * 0.45); 
+        
+        const tx = Math.cos(angle) * speed;
+        const ty = Math.sin(angle) * speed;
+        const rot = 0; // ZERO friction glide
 
-        /* Gentle sideways slip */
-        const perpAngle = angle + Math.PI / 2;
-        const slipMag   = speed * (Math.random() - 0.5) * 0.35;
-
-        // Rectangle size
-        const w     = cellW * (0.6 + Math.random() * 0.4);
-        const h     = cellH * (0.6 + Math.random() * 0.4);
-
-        const el = document.createElement('div');
-        el.style.cssText = `
-          position:fixed; left:0; top:0; pointer-events:none;
-          width:${w}px; height:${h}px;
+        p.style.cssText = `
+          position:fixed; left:${px}px; top:${py}px; width:${pw}px; height:${ph}px;
           background:${BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)]};
-          border-radius:6px; /* slightly softer corners */
-          will-change:transform,opacity; opacity:0;
-          box-shadow: 0 4px 12px rgba(18,18,16,0.06);
+          z-index:9999999; pointer-events:none; border-radius:10px;
+          opacity: 0; transform: scale(0);
+          will-change: transform, opacity;
+          transition: transform 700ms cubic-bezier(0.19, 1, 0.22, 1), opacity 400ms ease-out;
+          box-shadow: 0 4px 6px rgba(18,18,16,0.02);
         `;
-        overlay.appendChild(el);
+        
+        (p as any)._tx = tx;
+        (p as any)._ty = ty;
 
-        parts.push({
-          el, x: ox, y: oy, ox, oy,
-          vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-          slipX: Math.cos(perpAngle) * slipMag, slipY: Math.sin(perpAngle) * slipMag,
-          rot: 0, rotV: (Math.random() - 0.5) * 6, // Very slow grace rotation
-          delay: Math.random() * STRIP_END * 0.7,
+        overlay.appendChild(p);
+        pieces.push(p);
+      }
+    }
+
+    /* ── PHASE 1: Smooth Formation ── */
+    setTimeout(() => {
+        pieces.forEach((p) => {
+          setTimeout(() => {
+            p.style.opacity   = '1';
+            p.style.transform = `scale(1) translate3d(0,0,0)`;
+          }, Math.random() * 450);
         });
-      }
-    }
+    }, 50);
 
-    /* ── Minimal background scatter ── */
-    for (let i = 0; i < EXTRA_COUNT; i++) {
-      const ox   = cx + (Math.random() - 0.5) * cw * 1.5;
-      const oy   = cy + (Math.random() - 0.5) * ch * 1.5;
-      const dx   = ox - cx;
-      const dy   = oy - cy;
-      const speed = (diagDist / 50) * (0.6 + Math.random() * 0.6);
-      const angle = Math.atan2(dy, dx) + (Math.random() - 0.5) * 1.2;
-
-      const perpAngle = angle + Math.PI / 2;
-      const slipMag   = speed * (Math.random() - 0.5) * 0.5;
-
-      const size  = 12 + Math.random() * 16;
-
-      const el = document.createElement('div');
-      el.style.cssText = `
-        position:fixed; left:0; top:0; pointer-events:none;
-        width:${size}px; height:${size * (0.5 + Math.random() * 0.5)}px;
-        background:${BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)]};
-        border-radius:6px; will-change:transform,opacity; opacity:0;
-      `;
-      overlay.appendChild(el);
-
-      parts.push({
-        el, x: ox, y: oy, ox, oy,
-        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
-        slipX: Math.cos(perpAngle) * slipMag, slipY: Math.sin(perpAngle) * slipMag,
-        rot: Math.random() * 360, rotV: (Math.random() - 0.5) * 8,
-        delay: Math.random() * STRIP_END * 0.5,
-      });
-    }
-
-    /* ── Slow, butter-smooth card cross-fade ── */
-    requestAnimationFrame(() => {
+    /* ── PHASE 2: ULTRA-SLOW SMOOTH WATER SHATTER REVERSION ── */
+    setTimeout(() => {
+      // The Reveal is synchronized with the shatter (2.8s total sweep)
+      curtain.style.transition = `opacity ${CONFIG.SHATTER}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+      curtain.style.opacity    = '0'; 
+      
       requestAnimationFrame(() => {
-        if (cardIn) {
-          cardIn.style.transition = 'opacity 450ms ease-in-out';
-          cardIn.style.opacity    = '0';
-        }
+        pieces.forEach(p => {
+          // Reverted: Slow smooth water motion: 2.8s
+          p.style.transition = `transform ${CONFIG.SHATTER}ms cubic-bezier(0.35, 0.45, 0.45, 0.95), opacity 800ms ease-out 1800ms`;
+          p.style.transform  = `translate3d(${(p as any)._tx}px, ${(p as any)._ty}px, 0)`;
+          p.style.opacity    = '0';
+        });
       });
-    });
+    }, CONFIG.FORMATION + 200);
 
-    let t0: number | null = null;
+  }, [isExploding, left, top, cardW, cardH]);
 
-    const animate = (ts: number) => {
-      if (!t0) t0 = ts;
-      const elapsed = ts - t0;
-      const t       = Math.min(elapsed / TOTAL_MS, 1);
+  useEffect(() => {
+    if (!isExploding) return;
+    
+    if (pathname === '/') {
+        // ENFORCED CLEAN REVEAL Logic
+        // Total Cycle: 500 (Formation) + 2800 (Shatter) + overhead 
+        const totalToWait = CONFIG.FORMATION + CONFIG.SHATTER; 
 
-      /* Dashboard reveal fading overlay smoothly */
-      if (t >= BG_REVEAL) {
-        const p = easeOut((t - BG_REVEAL) / (1 - BG_REVEAL));
-        overlay.style.opacity = String(1 - p);
-      }
-
-      /* ── Physics ── */
-      for (const p of parts) {
-        if (t < p.delay) {
-          p.el.style.opacity = '0';
-          continue;
-        }
-
-        if (t < STRIP_END) {
-          /* Smooth breathing detachment */
-          const stripFrac = (t - p.delay) / Math.max(STRIP_END - p.delay, 0.001);
-          const alpha     = Math.min(1, stripFrac * 2.0);
-          const jitter    = stripFrac * 1.2; // softened jitter
-          
-          const jx = Math.sin(elapsed / 120  + p.delay * 80) * jitter;
-          const jy = Math.cos(elapsed / 100  + p.delay * 50) * jitter;
-          
-          p.rot = Math.sin(elapsed / 150 + p.delay * 60) * stripFrac * 1.5;
-          p.x   = p.ox + jx;
-          p.y   = p.oy + jy;
-          
-          p.el.style.transform = `translate3d(${p.x}px,${p.y}px,0) rotate(${p.rot}deg)`;
-          p.el.style.opacity   = String(alpha);
-        } else {
-          /* Silky smooth floating burst — Decelerating velocity */
-          const burstT   = (t - STRIP_END) / (1 - STRIP_END);
-          
-          // floatMultiplier linearly shrinks from 1 to 0. 
-          // Velocity drops to 0, creating a perfect zero-gravity stall at the end.
-          const floatMul = Math.max(0, 1 - burstT ** 1.3);
-
-          p.x   += p.vx * floatMul + p.slipX * floatMul * 0.6;
-          p.y   += p.vy * floatMul + p.slipY * floatMul * 0.6;
-          p.rot += p.rotV * floatMul;
-
-          const alpha = t < FADE_START
-            ? 1
-            : Math.max(0, 1 - easeOut((t - FADE_START) / (1 - FADE_START)));
-
-          p.el.style.transform = `translate3d(${p.x}px,${p.y}px,0) rotate(${p.rot}deg)`;
-          p.el.style.opacity   = String(alpha);
-        }
-      }
-
-      if (t < 1) {
-        rafRef.current = requestAnimationFrame(animate);
-      } else {
-        for (const p of parts) {
-          if (overlay.contains(p.el)) overlay.removeChild(p.el);
-        }
-        overlay.style.display   = 'none';
-        overlay.style.opacity   = '1';
-        overlay.style.background = '';
-        if (cardIn) cardIn.style.opacity = '1';
-        hasRun.current = false;
-        reset();
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(animate);
-    return () => { clearTimeout(navTimer); cancelAnimationFrame(rafRef.current); };
-  }, [isExploding, reset, router]);
+        const t = setTimeout(() => {
+            const container = containerRef.current;
+            if (container) {
+                container.style.display = 'none';
+                if (overlayRef.current) overlayRef.current.innerHTML = '';
+            }
+            reset();
+            hasRun.current = false;
+        }, totalToWait); 
+        return () => clearTimeout(t);
+    }
+  }, [isExploding, pathname, reset]);
 
   return (
-    <>
-      <style>{`
-        @keyframes blinkEye2 { 0%,94%,100%{transform:scaleY(1)} 97%{transform:scaleY(0.1)} }
-      `}</style>
-      <div
-        ref={overlayRef}
+    <div ref={containerRef} style={{ position:'fixed', inset:0, zIndex:2147483647, display: 'none' }}>
+      <div 
+        ref={curtainRef}
         style={{
-          position: 'fixed', inset: 0, zIndex: 99999,
-          display: 'none', pointerEvents: 'none', overflow: 'hidden',
+          position:'absolute', inset:0, zIndex:1,
+          pointerEvents:'none', background:'transparent', opacity:1,
+          willChange: 'background, opacity'
         }}
-      >
-        <div style={{ position:'absolute', top:-180, left:-180, width:640, height:640, borderRadius:'50%', border:'1.5px solid rgba(243,215,106,0.35)' }}/>
-        <div style={{ position:'absolute', bottom:-150, right:-150, width:480, height:480, borderRadius:'50%', border:'1.5px solid rgba(168,216,185,0.3)' }}/>
-
-        <div style={{ width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div
-            ref={cardInRef}
-            style={{
-              width: 420, background: '#FEFBEF',
-              border: '1.5px solid #D8CFBE', borderRadius: 22,
-              padding: '40px 36px 36px', position: 'relative',
-              boxShadow: '0 10px 36px rgba(18,18,16,0.09)',
-              willChange: 'opacity', opacity: 1,
-              fontFamily: 'Inter, system-ui, sans-serif',
-            }}
-          >
-            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#F9F3E4,#F3D76A,#F9F3E4)', borderRadius:'22px 22px 0 0', opacity:0.7 }}/>
-
-            <div style={{ textAlign:'center', marginBottom:20 }}>
-              <div style={{ width:64, height:64, background:'#EDE5D4', border:'6px solid #121210', borderRadius:20, margin:'0 auto 8px', display:'flex', alignItems:'center', justifyContent:'center' }}>
-                <div style={{ display:'flex', gap:8 }}>
-                  <div style={{ width:12, height:8, background:'#A8D8B9', borderRadius:3, animation:'blinkEye2 4s infinite' }}/>
-                  <div style={{ width:12, height:8, background:'#A8D8B9', borderRadius:3, animation:'blinkEye2 4s infinite' }}/>
-                </div>
-              </div>
-              <div style={{ fontSize:20, fontWeight:800, color:'#121210', letterSpacing:-0.5 }}>Life OS</div>
-              <div style={{ fontSize:12, color:'#8B867C', marginTop:4 }}>Entering your workspace…</div>
-            </div>
-
-            <div style={{ height:1, background:'#E4DDCF', marginBottom:22 }}/>
-
-            <div style={{ marginBottom:14 }}>
-              <div style={{ height:12, width:80, background:'#D8CFBE', borderRadius:4, marginBottom:7 }}/>
-              <div style={{ background:'#F0EBE0', borderRadius:10, height:40, border:'1.5px solid #D8CFBE' }}/>
-            </div>
-            <div style={{ marginBottom:16 }}>
-              <div style={{ height:12, width:80, background:'#D8CFBE', borderRadius:4, marginBottom:7 }}/>
-              <div style={{ background:'#F0EBE0', borderRadius:10, height:40, border:'1.5px solid #D8CFBE' }}/>
-            </div>
-            <div style={{ background:'#121210', borderRadius:10, height:42, marginBottom:16 }}/>
-            <div style={{ height:13, background:'#E4DDCF', width:'60%', margin:'0 auto', borderRadius:4 }}/>
-          </div>
-        </div>
-      </div>
-    </>
+      />
+      <div 
+        ref={overlayRef} 
+        style={{ 
+          position:'absolute', inset:0, zIndex:2, 
+          pointerEvents:'none', overflow:'hidden' 
+        }} 
+      />
+    </div>
   );
 }

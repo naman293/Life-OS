@@ -70,8 +70,8 @@ export function ReportCardModal({ onClose, stats }: ReportCardModalProps) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 999999, background: 'rgba(18,18,16,0.85)', backdropFilter: 'blur(10px)',
       display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, system-ui, sans-serif'
-    }}>
-      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 20 }}>
+    }} onClick={onClose}>
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 20 }} onClick={e => e.stopPropagation()}>
         
         {/* Close Button */}
         <button onClick={onClose} style={{

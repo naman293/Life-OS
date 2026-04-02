@@ -4,6 +4,7 @@ import { SignIn } from "@clerk/nextjs";
 import { useRef, useEffect, useLayoutEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RobotLogo } from "@/components/RobotLogo";
+import { useTransitionStore } from "@/lib/transitionStore";
 
 // After sign-in, Clerk redirects to /transition which plays the card explosion animation
 
@@ -31,6 +32,8 @@ export default function SignInPage() {
   const robotEye1 = useRef<HTMLDivElement>(null);
   const robotEye2 = useRef<HTMLDivElement>(null);
   const router    = useRouter();
+  const trigger   = useTransitionStore(s => s.trigger);
+  const resetT    = useTransitionStore(s => s.reset);
 
   /* Pre-fetch dashboard so it loads instantly when overlay fades */
   useEffect(() => { router.prefetch('/'); }, [router]);
@@ -126,6 +129,42 @@ export default function SignInPage() {
     return () => window.removeEventListener('mousemove', fn);
   }, []);
 
+  /* ── Intercept Submit to Explode Immediately ── */
+  useEffect(() => {
+    const handleAuthSubmit = (e: MouseEvent | SubmitEvent) => {
+      const target = e.target as HTMLElement;
+      // Triggers if clicking the primary submit button in Clerk
+      if (e.type === 'click' && !target.closest('.cl-formButtonPrimary')) return;
+      if (e.type === 'submit' && !target.closest('.cl-form')) return;
+
+      if (cardRef.current) {
+        const r = cardRef.current.getBoundingClientRect();
+        // Hide local card to show explosion seamlessly
+        cardRef.current.style.opacity = '0';
+        trigger(r.left, r.top, r.width, r.height);
+      }
+    };
+    
+    document.addEventListener('click', handleAuthSubmit, true);
+    document.addEventListener('submit', handleAuthSubmit, true);
+
+    // Watch for Clerk showing validation errors, abort transition!
+    const observer = new MutationObserver(() => {
+      const err = document.querySelector('.cl-formFieldErrorText, .cl-alertText');
+      if (err) {
+        resetT();
+        if (cardRef.current) cardRef.current.style.opacity = '1';
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      document.removeEventListener('click', handleAuthSubmit, true);
+      document.removeEventListener('submit', handleAuthSubmit, true);
+      observer.disconnect();
+    };
+  }, [trigger, resetT]);
+
   return (
     <>
       <style>{`
@@ -163,8 +202,7 @@ export default function SignInPage() {
 
         {/* ── 3D Card ── */}
         <div style={{ perspective: '900px', zIndex: 10, position: 'relative' }}>
-          <div ref={cardRef} style={{ width: 420, background: '#FEFBEF', border: '1.5px solid #D8CFBE', borderRadius: 22, padding: '40px 36px 36px', willChange: 'transform', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#F9F3E4,#F3D76A,#F9F3E4)', borderRadius: '22px 22px 0 0', opacity: 0.7 }} />
+          <div ref={cardRef} style={{ width: 480, background: '#FEFBEF', border: '1.5px solid #D8CFBE', borderRadius: 22, padding: '40px 48px 48px', willChange: 'transform', position: 'relative', display: 'flex', flexDirection: 'column' }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <div style={{ marginBottom: 8 }}><RobotLogo size={64} /></div>
               <div style={{ fontSize: 20, fontWeight: 800, color: '#121210', letterSpacing: -0.5 }}>Life OS</div>
@@ -173,7 +211,7 @@ export default function SignInPage() {
             <div style={{ height: 1, background: '#E4DDCF', marginBottom: 22 }} />
 
             <SignIn
-              forceRedirectUrl="/transition"
+              forceRedirectUrl="/"
               appearance={{
                 variables: {
                   colorPrimary: '#121210',
@@ -188,10 +226,10 @@ export default function SignInPage() {
                   fontSize: '14px',
                 },
                 elements: {
-                  rootBox:   { width: '100%' },
-                  cardBox:   { width: '100%', boxShadow: 'none', background: 'transparent' },
-                  card:      { background: 'transparent', boxShadow: 'none', border: 'none', padding: 0, margin: 0, width: '100%' },
-                  main:      { width: '100%' },
+                  rootBox:   { width: '100%', margin: 0, padding: 0, overflow: 'visible' },
+                  cardBox:   { width: '100%', boxShadow: 'none', background: 'transparent', margin: 0, padding: 0, overflow: 'visible' },
+                  card:      { background: 'transparent', boxShadow: 'none', border: 'none', padding: 0, margin: 0, width: '100%', overflow: 'visible' },
+                  main:      { width: '100%', overflow: 'visible' },
                   header:    { display: 'none' },
                   headerTitle:       { display: 'none' },
                   headerSubtitle:    { display: 'none' },
@@ -199,9 +237,10 @@ export default function SignInPage() {
                   dividerRow:        { display: 'none' },
                   phoneNumberField:  { display: 'none' },
                   footer:            { display: 'none' },
+                  footerAction:      { display: 'none' },
                   formFieldLabel: { color: '#2A2825', fontSize: '12px', fontWeight: '700', letterSpacing: '0.3px', marginBottom: '5px' },
-                  formFieldInput: { background: '#FEFBEF', border: '1.5px solid #D8CFBE', borderRadius: '10px', color: '#121210', fontSize: '14px', padding: '10px 13px' },
-                  formButtonPrimary: { background: '#121210', color: '#F9F3E4', borderRadius: '10px', fontSize: '14px', fontWeight: '700', padding: '11px 0', border: 'none', boxShadow: '0 4px 14px rgba(18,18,16,0.18)', letterSpacing: '0.2px', marginTop: '4px' },
+                  formFieldInput: { background: '#FEFBEF', border: '1.5px solid #D8CFBE', borderRadius: '10px', color: '#121210', fontSize: '14px', padding: '10px 13px', width: '100%' },
+                  formButtonPrimary: { background: '#121210', color: '#F9F3E4', borderRadius: '10px', fontSize: '14px', fontWeight: '700', padding: '11px 0', border: 'none', boxShadow: '0 4px 14px rgba(18,18,16,0.18)', letterSpacing: '0.2px', marginTop: '4px', width: '100%' },
                   alertText:          { color: '#A0302A', fontSize: '13px' },
                   formFieldErrorText: { color: '#A0302A', fontSize: '11px' },
                   identityPreviewText: { color: '#121210' },

@@ -180,7 +180,7 @@ export default function ProfilePage() {
               onMouseUp={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 0 #121210'; }}
               onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 0 #121210'; }}
             >
-              <Zap size={18} strokeWidth={3} fill="#121210" /> Generate Web3 Pass
+              <Zap size={18} strokeWidth={3} fill="#121210" /> Generate Daily Pass
             </button>
           </div>
 

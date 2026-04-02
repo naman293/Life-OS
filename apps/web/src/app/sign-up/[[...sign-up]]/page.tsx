@@ -3,6 +3,7 @@
 import { SignUp } from "@clerk/nextjs";
 import { useRef, useState, useEffect, useLayoutEffect } from "react";
 import { RobotLogo } from "@/components/RobotLogo";
+import { useTransitionStore } from "@/lib/transitionStore";
 
 /* ── Particle definitions ─────────────────────────────── */
 const P = Array.from({ length: 250 }).map((_, i) => {
@@ -27,6 +28,8 @@ export default function SignUpPage() {
   const robotRef    = useRef<HTMLDivElement>(null);
   const robotEye1   = useRef<HTMLDivElement>(null);
   const robotEye2   = useRef<HTMLDivElement>(null);
+  const trigger     = useTransitionStore(s => s.trigger);
+  const resetT      = useTransitionStore(s => s.reset);
 
   /* ── Physics refs (no state = ultra fast) ── */
   const pos  = useRef<{ x:number; y:number }[]>([]);
@@ -131,6 +134,39 @@ export default function SignUpPage() {
     return () => window.removeEventListener('mousemove', fn);
   }, []);
 
+  /* ── Intercept Submit to Explode Immediately ── */
+  useEffect(() => {
+    const handleAuthSubmit = (e: MouseEvent | SubmitEvent) => {
+      const target = e.target as HTMLElement;
+      if (e.type === 'click' && !target.closest('.cl-formButtonPrimary')) return;
+      if (e.type === 'submit' && !target.closest('.cl-form')) return;
+
+      if (cardRef.current) {
+        const r = cardRef.current.getBoundingClientRect();
+        cardRef.current.style.opacity = '0';
+        trigger(r.left, r.top, r.width, r.height);
+      }
+    };
+    
+    document.addEventListener('click', handleAuthSubmit, true);
+    document.addEventListener('submit', handleAuthSubmit, true);
+
+    const observer = new MutationObserver(() => {
+      const err = document.querySelector('.cl-formFieldErrorText, .cl-alertText');
+      if (err) {
+        resetT();
+        if (cardRef.current) cardRef.current.style.opacity = '1';
+      }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      document.removeEventListener('click', handleAuthSubmit, true);
+      document.removeEventListener('submit', handleAuthSubmit, true);
+      observer.disconnect();
+    };
+  }, [trigger, resetT]);
+
   return (
     <>
       <style>{`
@@ -208,18 +244,17 @@ export default function SignUpPage() {
           <div
             ref={cardRef}
             style={{
-              width: 420,
+              width: 480,
               background: '#FEFBEF',
               border: '1.5px solid #D8CFBE',
               borderRadius: 22,
-              padding: '40px 36px 36px',
+              padding: '40px 48px 48px',
               willChange: 'transform',
               position: 'relative',
               animation: 'cardIdle 5.5s ease-in-out infinite',
+              display: 'flex', flexDirection: 'column'
             }}
           >
-            <div style={{ position:'absolute', top:0, left:0, right:0, height:3, background:'linear-gradient(90deg,#F9F3E4,#A8D8B9,#F9F3E4)', borderRadius:'22px 22px 0 0', opacity:0.7 }}/>
-
             <div style={{ textAlign:'center', marginBottom:20 }}>
               <div style={{ marginBottom:8 }}><RobotLogo size={64} /></div>
               <div style={{ fontSize:20, fontWeight:800, color:'#121210', letterSpacing:-0.5 }}>Life OS</div>
@@ -229,6 +264,7 @@ export default function SignUpPage() {
             <div style={{ height:1, background:'#E4DDCF', marginBottom:22 }}/>
 
             <SignUp
+              forceRedirectUrl="/"
               appearance={{
                 variables: {
                   colorPrimary: '#121210',
@@ -243,28 +279,29 @@ export default function SignUpPage() {
                   fontSize: '14px',
                 },
                 elements: {
-                  rootBox:   { width:'100%' },
-                  cardBox:   { width:'100%', boxShadow:'none', background:'transparent' },
-                  card:      { background:'transparent', boxShadow:'none', border:'none', padding:0, margin:0, width:'100%' },
-                  main:      { width:'100%' },
-                  header:    { display:'none' },
+                  rootBox:   { width: '100%', margin: 0, padding: 0, overflow: 'visible' },
+                  cardBox:   { width: '100%', boxShadow: 'none', background: 'transparent', margin: 0, padding: 0, overflow: 'visible' },
+                  card:      { background: 'transparent', boxShadow: 'none', border: 'none', padding: 0, margin: 0, width: '100%', overflow: 'visible' },
+                  main:      { width: '100%', overflow: 'visible' },
+                  header:    { display: 'none' },
                   headerTitle:       { display:'none' },
                   headerSubtitle:    { display:'none' },
                   socialButtonsRoot: { display:'none' },
                   dividerRow:        { display:'none' },
                   phoneNumberField:  { display:'none' },
-                  footer:            { display:'none' },
+                  footer:            { display: 'none' },
+                  footerAction:      { display: 'none' },
                   formFieldLabel: {
                     color: '#2A2825', fontSize: '12px', fontWeight: '700', letterSpacing: '0.3px', marginBottom: '5px',
                   },
                   formFieldInput: {
                     background: '#FEFBEF', border: '1.5px solid #D8CFBE', borderRadius: '10px',
-                    color: '#121210', fontSize: '14px', padding: '10px 13px',
+                    color: '#121210', fontSize: '14px', padding: '10px 13px', width: '100%',
                   },
                   formButtonPrimary: {
                     background: '#121210', color: '#F9F3E4', borderRadius: '10px',
                     fontSize: '14px', fontWeight: '700', padding: '11px 0', border: 'none',
-                    boxShadow: '0 4px 14px rgba(18,18,16,0.18)', letterSpacing: '0.2px', marginTop: '4px',
+                    boxShadow: '0 4px 14px rgba(18,18,16,0.18)', letterSpacing: '0.2px', marginTop: '4px', width: '100%',
                   },
                   alertText:          { color:'#A0302A', fontSize:'13px' },
                   formFieldErrorText: { color:'#A0302A', fontSize:'11px' },
