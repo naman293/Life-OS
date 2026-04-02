@@ -1,14 +1,34 @@
 version: "3.9"
 
 services:
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Pass Clerk key to build time argument for Next.js static generation
+        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:-}
+    container_name: lifeos_web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - DATABASE_URL=${DATABASE_URL}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   postgres:
     image: postgres:16-alpine
     container_name: lifeos_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: lifeos
-      POSTGRES_PASSWORD: lifeos_password
-      POSTGRES_DB: lifeos_db
+      POSTGRES_USER: ${POSTGRES_USER:-lifeos}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lifeos_password}
+      POSTGRES_DB: ${POSTGRES_DB:-lifeos_db}
     ports:
       - "5432:5432"
     volumes:
