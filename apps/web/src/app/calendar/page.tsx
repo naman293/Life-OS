@@ -29,6 +29,9 @@ function weekDays(ws: Date) {
 function toH(iso: string) {
   const d = new Date(iso); return d.getHours() + d.getMinutes() / 60;
 }
+function toYMD(d: Date) {
+  return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`;
+}
 function hourToIso(date: Date, h: number) {
   const d = new Date(date);
   d.setHours(Math.floor(h), Math.round((h % 1) * 60), 0, 0);
@@ -316,7 +319,7 @@ export default function CalendarPage() {
   const [ws,  setWs]  = useState(weekStart(new Date()));
   const [showPicker, setShowPicker] = useState(false);
   const days = useMemo(() => weekDays(ws), [ws]);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = toYMD(new Date());
 
   const from = days[0].toISOString();
   const to   = new Date(days[6].getTime() + 86399999).toISOString();
@@ -355,8 +358,7 @@ export default function CalendarPage() {
   const getColEl  = (dayIdx: number) => gridRef.current?.querySelectorAll('[data-day-col]')[dayIdx] as HTMLElement | null;
   const yToH = (col: HTMLElement, clientY: number) => {
     const rect = col.getBoundingClientRect();
-    const scrollEl = col.closest('[data-scroll]') as HTMLElement;
-    return Math.max(0, Math.min(24, (clientY - rect.top + (scrollEl?.scrollTop ?? 0)) / HOUR_H));
+    return Math.max(0, Math.min(24, (clientY - rect.top) / HOUR_H));
   };
 
   /* ── Event click vs drag detection ── */
@@ -706,7 +708,7 @@ export default function CalendarPage() {
           <div style={{ display:'grid', gridTemplateColumns:'48px repeat(7, 1fr)', borderBottom:'1px solid var(--border-0)', flexShrink:0, background:'var(--bg-1)' }}>
             <div/>
             {days.map(d => {
-              const ds = d.toISOString().split('T')[0];
+              const ds = toYMD(d);
               const isToday = ds === todayStr;
               return (
                 <div key={ds} style={{ padding:'8px 4px', textAlign:'center', borderLeft:'1px solid var(--border-0)' }}>
@@ -732,9 +734,9 @@ export default function CalendarPage() {
 
               {/* Day columns */}
               {days.map((d, dayIdx) => {
-                const ds      = d.toISOString().split('T')[0];
+                const ds      = toYMD(d);
                 const isToday = ds === todayStr;
-                const dayEvs  = events.filter(e => e.startAt.split('T')[0] === ds);
+                const dayEvs  = events.filter(e => toYMD(new Date(e.startAt)) === ds);
                 const layout  = computeLayout(dayEvs);
 
                 return (

@@ -1,79 +1,121 @@
-# Life OS Professional Deployment Guide
+# Professional Deployment Guide: Life OS on AWS (EC2 + Docker)
 
-This document outlines the professional deployment procedures for Life OS. 
-
-## Environment Prerequisites
-Whether deploying to a cloud native provider (Vercel) or your own Dockerized VPS (AWS/DigitalOcean), you require **Production Environment Variables**:
-
-1. **Authentication (Clerk)**
-   - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`: From your Clerk Dashboard (Live Environment).
-   - `CLERK_SECRET_KEY`: Live secret key.
-
-2. **Database (Neon)**
-   - `DATABASE_URL`: Ensure this points to the production, pooled connection string.
-
-3. **Application URL**
-   - `NEXT_PUBLIC_APP_URL`: Your custom production domain (e.g. `https://lifeos.app`).
+This guide provides a professional, step-by-step workflow to deploy your **Life OS** application to the cloud using **AWS (Amazon Web Services)** and **Docker**. This is the standard industry approach for "Infrastructure as Code" and containerized deployments.
 
 ---
 
-## Deployment Path 1: Dockerized VPS (Self-Hosted Control)
+## Phase 1: Local Preparation (Your Machine)
 
-Using Docker gives you full control. We have provided a highly-optimized multi-stage Dockerfile that leverages **Turborepo** pruning and **Next.js Standalone** mode to create a tiny, secure production image.
+Before moving to the cloud, we must ensure your application is "Containerized." This means it can run anywhere that has Docker installed.
 
-### 1. Build the Docker Image
-Push your code to your server and navigate into the root directory.
+### 1. Install Docker Desktop
+- Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/).
+- Verify installation by running:
+  ```bash
+  docker --version
+  ```
 
+### 2. Test the Docker Build Locally
+We use the `Dockerfile` located in `apps/web/Dockerfile`. Run this from the root of your project:
 ```bash
-# This uses the isolated builder to install deps, build nextjs, and start production server
-docker build -t lifeos-web -f apps/web/Dockerfile .
+# Build the image (Replace YOUR_CLERK_KEY with your actual public key)
+docker build -t life-os-web \
+  --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_... \
+  ./apps/web
+
+# Run the container to test
+docker run -p 3000:3000 life-os-web
 ```
+Visit `localhost:3000` to confirm it works.
 
-### 2. Configure Production Secrets
-Create a `.env.production` file on your server in the same folder as `docker-compose.yml`:
+---
 
-```env
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_your_key_here
-CLERK_SECRET_KEY=sk_live_your_key_here
-DATABASE_URL=postgres://user:pass@host/lifeos_db
-```
+## Phase 2: AWS Infrastructure Setup
 
-### 3. Run Production Containers
-The orchestrated `docker-compose.yml` file handles networking the Next.js app securely alongside an optional self-hosted local database if you don't want to use Neon Serverless (although Neon is strongly recommended).
+### 1. Create an AWS Account
+- Sign up for the [AWS Free Tier](https://aws.amazon.com/free/).
 
+### 2. Launch an EC2 Instance (The Virtual Server)
+1. Go to the **EC2 Dashboard** and click **Launch Instance**.
+2. **Name**: `Life-OS-Production`.
+3. **OS**: Choose **Ubuntu 22.04 LTS** (Industry standard for web servers).
+4. **Instance Type**: `t2.micro` (Free Tier eligible).
+5. **Key Pair**: Create a new key pair (e.g., `life-os-key.pem`). **Download and save this safely!**
+6. **Network Settings**:
+   - Allow **SSH** (Port 22) - for your access.
+   - Allow **HTTPS** (Port 443) - for public web traffic.
+   - Allow **HTTP** (Port 80) - for public web traffic.
+   - *Custom Rule*: Add Port **3000** (if you want direct access).
+
+---
+
+## Phase 3: Server Configuration (Connecting to AWS)
+
+### 1. SSH into your Server
+Open your terminal on your Mac and run:
 ```bash
-docker-compose --env-file .env.production up -d
+chmod 400 life-os-key.pem
+ssh -i "life-os-key.pem" ubuntu@your-ec2-public-ip
 ```
-The application is now running securely behind port `3000`. You can map this with a Reverse Proxy like NGINX or Traefik and attach an SSL certificate.
+
+### 2. Install Docker on the EC2 Server
+Once logged into the server, run these commands:
+```bash
+sudo apt-get update
+sudo apt-get install -y docker.io
+sudo systemctl start docker
+sudo systemctl enable docker
+# Allow your user to run docker without 'sudo'
+sudo usermod -aG docker ubuntu
+# Log out and log back in for changes to take effect
+exit
+ssh -i "life-os-key.pem" ubuntu@your-ec2-public-ip
+```
 
 ---
 
-## Deployment Path 2: Vercel (Cloud Native)
+## Phase 4: Deploying Your Code
 
-Vercel is the creator of Next.js and Turborepo. Deploying Life OS to Vercel provides out-of-the-box global edge caching.
+### 1. Clone your Repository on the Server
+```bash
+git clone https://github.com/naman293/Life-OS.git
+cd Life-OS
+```
 
-### 1. Link the Repository
-- Connect your GitHub repository to Vercel via the Vercel Dashboard -> Add New Project.
+### 2. Set up Environment Variables
+Professional apps use a `.env` file on the server. Create one in `apps/web/`:
+```bash
+nano apps/web/.env
+```
+Paste your secrets (Clerk keys, Database URLs, etc.) and save (`Ctrl+O`, `Enter`, `Ctrl+X`).
 
-### 2. Configure the Monorepo
-Vercel automatically detects Next.js inside Turborepo!
-- **Framework Preset**: Next.js
-- **Root Directory**: `apps/web`
-- **Build Command**: `cd ../.. && npx turbo run build --filter=web...` (Automatically provided by Vercel)
-
-### 3. Inject Environment Variables
-Provide the `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, and `DATABASE_URL` during the project setup screen.
-
-### 4. Deploy
-Click "Deploy". The CI/CD pipeline starts instantly. Note: Ensure you push these changes to GitHub first.
+### 3. Build and Run with Docker Compose
+We use `docker-compose` to manage the lifecycle of your app:
+```bash
+docker-compose up -d --build
+```
+The `-d` flag runs it in "detached mode" (background), so the app stays alive after you close the terminal.
 
 ---
 
-## Continuous Integration (CI/CD)
-This repository includes a professional GitHub Actions workflow located in `.github/workflows/deploy.yml`.
+## Phase 5: Domain & SSL (The Final Professional Touch)
 
-- **On every push to `main`**: 
-  - Code is strictly typed-checked.
-  - Linting passes must succeed.
-  - Test production build run is verified.
-- You can optionally uncomment the final step in the workflow to auto-publish your customized Docker Image directly to **Docker Hub** or **GitHub Container Registry**.
+To access your app via a real domain (e.g., `app.lifeos.com`) instead of an IP address:
+
+1. **Point your Domain**: In your domain provider (GoDaddy/Namecheap), create an `A Record` pointing to your EC2 Public IP.
+2. **Install Nginx**: Use Nginx as a "Reverse Proxy" to handle traffic from Port 80 to your Docker container on Port 3000.
+3. **SSL (HTTPS)**: Use **Certbot (Let's Encrypt)** to get a free SSL certificate.
+   ```bash
+   sudo apt install certbot python3-certbot-nginx
+   sudo certbot --nginx -d yourdomain.com
+   ```
+
+---
+
+## Summary of Commands for Future Use
+- `docker ps`: See running containers.
+- `docker logs -f [container_id]`: See live logs (debug).
+- `git pull && docker-compose up -d --build`: Update your app with new code.
+
+> [!TIP]
+> **Professional Secret**: In a real company, you would use a "CI/CD Pipeline" (like GitHub Actions) to automate Phase 4, so every time you `git push`, the server updates itself automatically!
