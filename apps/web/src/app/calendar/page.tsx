@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback, useMemo, useEffect, Fragment } from 'react';
 import { useEvents, useCreateEvent, useMoveEvent, useDeleteEvent, useUpdateEvent, CalendarEvent } from '@/hooks/useEvents';
-import { ChevronLeft, ChevronRight, Loader2, X, Trash2, Clock, Edit3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, X, Trash2, Clock, Edit3, Lock, Cake, CalendarDays } from 'lucide-react';
+import confetti from 'canvas-confetti';
 
 /* ── Constants ─────────────────────────────── */
 const HOUR_H   = 56;
@@ -42,6 +43,31 @@ function fmtH(h: number) {
   const hh = Math.floor(h), mm = Math.round((h % 1) * 60);
   return `${hh % 12 || 12}:${mm.toString().padStart(2, '0')}${hh < 12 ? 'am' : 'pm'}`;
 }
+
+const fireBirthdayConfetti = () => {
+  const duration = 3 * 1000;
+  const animationEnd = Date.now() + duration;
+  const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 999999 };
+
+  const interval: any = setInterval(function() {
+    const timeLeft = animationEnd - Date.now();
+    if (timeLeft <= 0) return clearInterval(interval);
+    const particleCount = 50 * (timeLeft / duration);
+    confetti({ ...defaults, particleCount, origin: { x: Math.random(), y: Math.random() - 0.2 }, shapes: ['star'], colors: ['#F3D76A', '#F7B6DA', '#ADC4EC', '#A8D8B9'] });
+  }, 250);
+};
+
+const fireHolidayConfetti = () => {
+  confetti({
+    particleCount: 150,
+    spread: 70,
+    origin: { y: 0.6 },
+    colors: ['#F3D76A', '#FEFBEF', '#D8CFBE'],
+    gravity: 0.8,
+    scalar: 1.2,
+    drift: 0,
+  });
+};
 
 /* ── Overlap layout ──────────────────────── */
 interface LayoutBox { col: number; cols: number }
@@ -365,6 +391,16 @@ export default function CalendarPage() {
   const onEventMouseDown = useCallback((ev: CalendarEvent, dayIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
     if (e.button !== 0) return;
+    
+    // CALENDAR LOCK: Prevent modifying past events
+    const eventDate = new Date(ev.startAt);
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    if (eventDate < now) {
+      if (e.type === 'mousedown') setSelectedEvent(ev); // Still allow viewing details
+      return; 
+    }
+
     e.preventDefault();
     moveDragRef.current = {
       ev, dayIdx,
@@ -391,6 +427,13 @@ export default function CalendarPage() {
   /* ── Create drag (empty space mousedown) ── */
   const onColMouseDown = useCallback((dayIdx: number, e: React.MouseEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
+
+    // CALENDAR LOCK: Prevent creating in the past
+    const targetDate = new Date(days[dayIdx]);
+    const now = new Date();
+    now.setHours(0,0,0,0);
+    if (targetDate < now) return;
+
     e.preventDefault();
     const h = snap(yToH(getColEl(dayIdx)!, e.clientY));
     createDragRef.current = { dayIdx, startH: h, currentStartH: h, currentEndH: h + 1 };
@@ -403,7 +446,7 @@ export default function CalendarPage() {
       const timeEl = prev.querySelector('.prev-time') as HTMLElement;
       if (timeEl) timeEl.textContent = `${fmtH(h)} – ${fmtH(h + 1)}`;
     }
-  }, []);
+  }, [days]);
 
   /* ── Global mousemove: requestAnimationFrame for ultra-fast 120fps ── */
   useEffect(() => {
@@ -644,6 +687,30 @@ export default function CalendarPage() {
     setDraft(null);
   };
 
+  /* ── CELEBRATION LOGIC ── */
+  useEffect(() => {
+    if (isLoading || events.length === 0) return;
+    
+    const today = new Date();
+    const todayYMD = toYMD(today);
+    const dayKey = `celebrated-${todayYMD}`;
+    
+    // Only fire once per session/day to respect the user
+    if (sessionStorage.getItem(dayKey)) return;
+
+    const todayEvents = events.filter(e => toYMD(new Date(e.startAt)) === todayYMD);
+    const hasBirthday = todayEvents.some(e => e.tags.includes('birthday') || e.title.toLowerCase().includes('birthday'));
+    const hasHoliday  = todayEvents.some(e => e.tags.includes('holiday') || e.title.toLowerCase().includes('holiday'));
+
+    if (hasBirthday) {
+      fireBirthdayConfetti();
+      sessionStorage.setItem(dayKey, 'true');
+    } else if (hasHoliday) {
+      fireHolidayConfetti();
+      sessionStorage.setItem(dayKey, 'true');
+    }
+  }, [events, isLoading]);
+
   const navigate = (dir: -1|1) => {
     const d = new Date(ws); d.setDate(d.getDate() + dir * 7); setWs(weekStart(d));
   };
@@ -710,10 +777,35 @@ export default function CalendarPage() {
             {days.map(d => {
               const ds = toYMD(d);
               const isToday = ds === todayStr;
+              const isPast = d < new Date(new Date().setHours(0,0,0,0));
+              
+              // Special Days (Birthdays/Holidays) at top
+              const daySpecial = events.filter(e => toYMD(new Date(e.startAt)) === ds && (e.tags.includes('birthday') || e.tags.includes('holiday') || e.title.toLowerCase().includes('birthday') || e.title.toLowerCase().includes('holiday')));
+
               return (
-                <div key={ds} style={{ padding:'8px 4px', textAlign:'center', borderLeft:'1px solid var(--border-0)' }}>
-                  <div style={{ fontSize:10, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.5px' }}>{DAY_ABBR[d.getDay()]}</div>
-                  <div style={{ width:26, height:26, borderRadius:'50%', margin:'2px auto 0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:isToday?700:400, background:isToday?'var(--sidebar-bg)':'transparent', color:isToday?'var(--accent-yellow)':'var(--text-0)' }}>{d.getDate()}</div>
+                <div key={ds} style={{ padding:'8px 4px 4px', textAlign:'center', borderLeft:'1px solid var(--border-0)', background: isPast ? 'rgba(18,18,16,0.02)' : 'transparent', display:'flex', flexDirection:'column', alignItems:'center' }}>
+                  <div style={{ fontSize:10, fontWeight:500, color:'var(--text-2)', textTransform:'uppercase', letterSpacing:'0.5px', opacity: isPast ? 0.6 : 1 }}>{DAY_ABBR[d.getDay()]}</div>
+                  <div style={{ width:26, height:26, borderRadius:'50%', margin:'2px auto 6px', display:'flex', alignItems:'center', justifyContent:'center', fontSize:13, fontWeight:isToday?700:400, background:isToday?'var(--sidebar-bg)':'transparent', color:isToday?'var(--accent-yellow)':'var(--text-0)', opacity: isPast ? 0.6 : 1 }}>{d.getDate()}</div>
+                  
+                  {/* Special Days Section */}
+                  <div style={{ display:'flex', flexDirection:'column', gap:3, width:'100%', padding:'0 4px' }}>
+                    {daySpecial.map(special => {
+                      const isBirthday = special.tags.includes('birthday') || special.title.toLowerCase().includes('birthday');
+                      return (
+                        <div key={special.id} style={{ 
+                          fontSize:10, fontWeight:700, padding:'2px 6px', borderRadius:4, 
+                          background: isBirthday ? 'rgba(247,182,218,0.2)' : 'rgba(243,215,106,0.2)',
+                          color: isBirthday ? '#A0306A' : '#7F6700',
+                          border: `1px solid ${isBirthday ? '#F7B6DA80' : '#F3D76A80'}`,
+                          display:'flex', alignItems:'center', gap:4, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap',
+                          cursor: 'pointer'
+                        }} title={special.title} onClick={() => setSelectedEvent(special)}>
+                          {isBirthday ? <Cake size={10}/> : <CalendarDays size={10}/>}
+                          <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{special.title}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             })}
@@ -781,13 +873,14 @@ export default function CalendarPage() {
                       const box     = layout.get(ev.id) ?? { col:0, cols:1 };
                       const pct     = 100 / box.cols;
                       const isSelected = selectedEvent?.id === ev.id;
+                      const isPast = new Date(ev.startAt) < new Date(new Date().setHours(0,0,0,0));
 
                       return (
                         <div
                           key={ev.id}
                           data-event-id={ev.id}
                           data-event-block
-                          onMouseDown={e => onEventMouseDown(ev, dayIdx, e)}
+                          onMouseDown={e => !isPast && onEventMouseDown(ev, dayIdx, e)}
                           style={{
                             position:'absolute', top, height,
                             left:`calc(${box.col * pct}% + 2px)`,
@@ -795,32 +888,34 @@ export default function CalendarPage() {
                             background:c.bg,
                             borderLeft:`3px solid ${c.border}`,
                             borderRadius:6, padding:'3px 6px',
-                            cursor:'grab', zIndex:5,
+                            cursor: isPast ? 'default' : 'grab', zIndex: 5,
                             outline: isSelected ? `2px solid ${c.border}` : 'none',
                             outlineOffset: 1,
+                            opacity: isPast ? 0.6 : 1,
                             boxShadow: isSelected ? `0 0 0 2px white, 0 0 0 3.5px ${c.border}` : box.cols > 1 && box.col > 0 ? '0 2px 8px rgba(0,0,0,0.10)' : undefined,
                             display: 'flex', flexDirection: 'column',
                           }}
                         >
-                          <div style={{ fontSize:10, fontWeight:700, color:c.border, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.3 }}>{ev.title}</div>
+                          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:4 }}>
+                            <div style={{ fontSize:10, fontWeight:700, color:c.border, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', lineHeight:1.3 }}>{ev.title}</div>
+                            {isPast && <Lock size={10} style={{ opacity:0.5, flexShrink:0 }}/>}
+                          </div>
                           {height > 26 && <div style={{ fontSize:9, color:c.border, opacity:0.7 }}>{fmtH(startH)}</div>}
                           
-                          {/* Top Resize Handle */}
-                          <div
-                            data-native-cursor="ns-resize"
-                            onMouseDown={e => onResizeMouseDown(ev, dayIdx, 'top', e)}
-                            style={{
-                              position: 'absolute', top: 0, left: 0, right: 0, height: 6, zIndex: 6,
-                            }}
-                          />
-                          {/* Bottom Resize Handle */}
-                          <div
-                            data-native-cursor="ns-resize"
-                            onMouseDown={e => onResizeMouseDown(ev, dayIdx, 'bottom', e)}
-                            style={{
-                              position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, zIndex: 6,
-                            }}
-                          />
+                          {!isPast && (
+                            <>
+                              <div
+                                data-native-cursor="ns-resize"
+                                onMouseDown={e => onResizeMouseDown(ev, dayIdx, 'top', e)}
+                                style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 6, zIndex: 6 }}
+                              />
+                              <div
+                                data-native-cursor="ns-resize"
+                                onMouseDown={e => onResizeMouseDown(ev, dayIdx, 'bottom', e)}
+                                style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 6, zIndex: 6 }}
+                              />
+                            </>
+                          )}
                         </div>
                       );
                     })}
