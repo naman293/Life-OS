@@ -23,12 +23,20 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to   = searchParams.get("to");
 
-  const where: Record<string, unknown> = { userId };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: Record<string, any> = { userId };
+
   if (from || to) {
+    // Explicit date range (e.g. calendar view) — honour it exactly
     where.startAt = {
       ...(from ? { gte: new Date(from) } : {}),
       ...(to   ? { lte: new Date(to)   } : {}),
     };
+  } else {
+    // Default list view — hide events that ended before today's midnight
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    where.endAt = { gte: todayMidnight };
   }
 
   const events = await prisma.event.findMany({

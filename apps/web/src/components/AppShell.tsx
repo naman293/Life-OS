@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useAuth, useUser, UserButton } from '@clerk/nextjs';
+import { useAuth, useUser, UserButton, SignInButton, SignUpButton, Show } from '@clerk/nextjs';
 import {
   LayoutDashboard, Calendar, CheckSquare, Zap, BarChart2, User, Bell, Search, Plus,
   ChevronLeft, ChevronRight
@@ -12,6 +12,7 @@ import { QuickAddModal } from './QuickAddModal';
 import { CustomCursor } from './CustomCursor';
 import { NotificationDropdown } from './NotificationDropdown';
 import { RobotLogo } from './RobotLogo';
+import { BrainDumpModal } from './BrainDumpModal';
 
 const NAV_ITEMS = [
   { href: '/',          icon: LayoutDashboard, label: 'Dashboard'  },
@@ -47,7 +48,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isLoaded } = useAuth();
   const { user }    = useUser();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [brainDumpOpen, setBrainDumpOpen] = useState(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    const handleGlobalKey = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + Shift + I
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'i') {
+        e.preventDefault();
+        setBrainDumpOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKey);
+    return () => window.removeEventListener('keydown', handleGlobalKey);
+  }, []);
 
   // Don't show shell on auth pages
   const isAuthPage = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
@@ -134,7 +148,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 />
               </div>
               <NotificationDropdown />
-              {isLoaded && isSignedIn && (
+              <Show when="signed-in">
                 <button
                   className="btn btn-primary"
                   id="quick-add-btn"
@@ -144,7 +158,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <Plus size={16} aria-hidden="true" />
                   Quick Add
                 </button>
-              )}
+              </Show>
+              <Show when="signed-out">
+                <SignInButton mode="modal">
+                  <button className="btn">Sign in</button>
+                </SignInButton>
+                <SignUpButton mode="modal">
+                  <button className="btn btn-primary">Sign up</button>
+                </SignUpButton>
+              </Show>
             </div>
           </header>
 
@@ -156,6 +178,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {quickAddOpen && (
         <QuickAddModal onClose={() => setQuickAddOpen(false)} />
+      )}
+      {brainDumpOpen && (
+        <BrainDumpModal onClose={() => setBrainDumpOpen(false)} />
       )}
     </>
   );

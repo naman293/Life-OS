@@ -93,7 +93,12 @@ export function useDeleteTask() {
   return useCallback(async (id: string) => {
     const res = await fetch(`/api/tasks/${id}`, { method: "DELETE" });
     if (!res.ok) throw new Error(await res.text());
-    globalMutate((key: unknown) => typeof key === "string" && key.startsWith("/api/tasks"), undefined, { revalidate: true });
+    // SWR keys are [url, userId] arrays — must filter by array, not string
+    globalMutate(
+      (key: unknown) => Array.isArray(key) && typeof key[0] === "string" && key[0].startsWith("/api/tasks"),
+      undefined,
+      { revalidate: true }
+    );
   }, []);
 }
 

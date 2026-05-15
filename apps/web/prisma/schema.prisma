@@ -49,6 +49,7 @@ model User {
   tasks  Task[]
   events Event[]
   habits Habit[]
+  inboxItems InboxItem[]
 
   @@map("users")
 }
@@ -128,4 +129,16 @@ model HabitLog {
   @@unique([habitId, date])
   @@index([habitId])
   @@map("habit_logs")
+}
+
+// InboxItem: raw thoughts / brain dumps
+model InboxItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("inbox")
 }

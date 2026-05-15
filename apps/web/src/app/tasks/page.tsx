@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useTasks, useUpdateTask, useDeleteTask, useMoveTask, Task } from '@/hooks/useTasks';
-import { List, LayoutGrid, Trash2, Loader2 } from 'lucide-react';
+import { List, LayoutGrid, Trash2, Loader2, Pencil, Check, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
+import { DatePicker } from '@/components/DatePicker';
 
 const STATUS_COLS: { id: Task['status']; label: string; colour: string }[] = [
   { id: 'TODO',        label: 'To Do',      colour: '#A8D8B9' },
@@ -12,6 +13,227 @@ const STATUS_COLS: { id: Task['status']; label: string; colour: string }[] = [
 ];
 
 const PRIORITY_COLOUR: Record<string, string> = { HIGH: '#F5A6A6', MEDIUM: '#F3D76A', LOW: '#A8D8B9' };
+
+const fmt = (dateStr?: string | null) =>
+  dateStr ? new Date(dateStr).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '—';
+
+const toLocalYYYYMMDD = (dateStr?: string | null) => {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+
+// ── Inline-editable cell ──────────────────────────────────────────
+function EditableCell({ value, placeholder, onSave, type = 'text', displayValue }: {
+  value: string;
+  placeholder: string;
+  onSave: (v: string) => void;
+  type?: 'text' | 'date';
+  displayValue?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const startEdit = () => {
+    setDraft(value);
+    setEditing(true);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
+  const save = () => {
+    setEditing(false);
+    if (draft !== value) onSave(draft);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setDraft(value);
+  };
+
+  if (editing) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <input
+          ref={inputRef}
+          type={type}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') save(); if (e.key === 'Escape') cancel(); }}
+          onBlur={save}
+          style={{
+            border: '2px solid var(--text-0)',
+            borderRadius: 4,
+            padding: '2px 6px',
+            fontSize: 'var(--text-xs)',
+            fontFamily: 'var(--font-sans)',
+            background: 'var(--bg-2)',
+            color: 'var(--text-0)',
+            outline: 'none',
+            width: type === 'date' ? 130 : 100,
+          }}
+        />
+        <button
+          onMouseDown={(e) => { e.preventDefault(); save(); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-1)', padding: 2 }}
+        >
+          <Check size={12} />
+        </button>
+        <button
+          onMouseDown={(e) => { e.preventDefault(); cancel(); }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-2)', padding: 2 }}
+        >
+          <X size={12} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={startEdit}
+      style={{
+        background: 'none',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        padding: '2px 4px',
+        borderRadius: 4,
+        color: value ? 'var(--text-0)' : 'var(--text-2)',
+        fontSize: 'var(--text-xs)',
+        fontFamily: 'var(--font-sans)',
+        transition: 'background 0.15s',
+      }}
+      onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-1)'}
+      onMouseOut={(e) => e.currentTarget.style.background = 'none'}
+      title={`Edit ${placeholder}`}
+    >
+      {(displayValue ?? value) || <span style={{ fontStyle: 'italic' }}>{placeholder}</span>}
+      <Pencil size={10} style={{ opacity: 0.4 }} />
+    </button>
+  );
+}
+
+// ── Single task row ───────────────────────────────────────────────
+function TaskRow({ task, onUpdate, onDelete }: {
+  task: Task;
+  onUpdate: (id: string, patch: Partial<Task>) => Promise<Task>;
+  onDelete: (id: string) => Promise<void>;
+}) {
+  const categoryValue = task.tags[0] ?? '';
+  const dueDateValue = toLocalYYYYMMDD(task.dueAt);
+
+  const saveCategory = (val: string) => {
+    const tags = val.trim() ? [val.trim()] : [];
+    onUpdate(task.id, { tags });
+  };
+
+  const saveDueDate = (val: string | null) => {
+    const dueAt = val ? new Date(`${val}T00:00:00`).toISOString() : null;
+    onUpdate(task.id, { dueAt });
+  };
+
+  return (
+    <tr className={task.status === 'DONE' ? 'task-row-done' : ''}>
+      <td>
+        <button
+          className={`task-checkbox ${task.status === 'DONE' ? 'done' : ''}`}
+          onClick={() => onUpdate(task.id, { status: task.status === 'DONE' ? 'TODO' : 'DONE' })}
+          aria-label={task.status === 'DONE' ? 'Mark incomplete' : 'Mark complete'}
+        />
+      </td>
+      <td>
+        <span className={`task-title ${task.status === 'DONE' ? 'done' : ''}`}>{task.title}</span>
+      </td>
+      <td>
+        <EditableCell
+          value={categoryValue}
+          placeholder="add tag"
+          onSave={saveCategory}
+        />
+      </td>
+      <td>
+        <DatePicker
+          value={dueDateValue}
+          onChange={saveDueDate}
+          placeholder="Set date"
+        />
+      </td>
+      <td>
+        <select
+          style={{
+            padding: '6px 10px',
+            fontSize: 'var(--text-xs)',
+            width: '100%',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.4px',
+            background: task.priority ? PRIORITY_COLOUR[task.priority] : 'var(--bg-2)',
+            border: '2px solid var(--text-0)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            color: 'var(--text-0)',
+            boxShadow: '2px 2px 0 var(--text-0)',
+            transition: 'all 0.1s',
+            appearance: 'none',
+            textAlign: 'center'
+          }}
+          value={task.priority ?? ''}
+          onChange={(e) => onUpdate(task.id, { priority: (e.target.value as Task['priority']) || null })}
+          aria-label={`Priority for ${task.title}`}
+        >
+          <option value="">NONE</option>
+          <option value="LOW">LOW</option>
+          <option value="MEDIUM">MEDIUM</option>
+          <option value="HIGH">HIGH</option>
+        </select>
+      </td>
+      <td>
+        <select
+          style={{
+            padding: '6px 10px',
+            fontSize: 'var(--text-xs)',
+            width: '100%',
+            fontWeight: 800,
+            textTransform: 'uppercase',
+            letterSpacing: '0.4px',
+            background: 'var(--bg-2)',
+            border: '2px solid var(--text-0)',
+            borderRadius: 8,
+            cursor: 'pointer',
+            color: 'var(--text-0)',
+            boxShadow: '2px 2px 0 var(--text-0)',
+            transition: 'all 0.1s',
+            appearance: 'none',
+            textAlign: 'center'
+          }}
+          value={task.status}
+          onChange={(e) => onUpdate(task.id, { status: e.target.value as Task['status'] })}
+          aria-label={`Status for ${task.title}`}
+        >
+          <option value="TODO">TODO</option>
+          <option value="IN_PROGRESS">IN WORK</option>
+          <option value="DONE">DONE</option>
+        </select>
+      </td>
+      <td>
+        <button
+          className="icon-btn"
+          onClick={() => onDelete(task.id)}
+          aria-label={`Delete "${task.title}"`}
+          style={{ color: 'var(--text-2)' }}
+        >
+          <Trash2 size={14} />
+        </button>
+      </td>
+    </tr>
+  );
+}
 
 type Filter = 'all' | 'today' | 'upcoming' | 'done';
 
@@ -40,8 +262,6 @@ export default function TasksPage() {
     }
   };
 
-  const fmt = (dateStr?: string | null) =>
-    dateStr ? new Date(dateStr).toLocaleDateString('en-US', { day: 'numeric', month: 'short' }) : '—';
 
   return (
     <div className="page-content">
@@ -104,59 +324,18 @@ export default function TasksPage() {
             </thead>
             <tbody>
               {tasks.map((task) => (
-                <tr key={task.id} className={task.status === 'DONE' ? 'task-row-done' : ''}>
-                  <td>
-                    <button
-                      className={`task-checkbox ${task.status === 'DONE' ? 'done' : ''}`}
-                      onClick={() => updateTask(task.id, { status: task.status === 'DONE' ? 'TODO' : 'DONE' })}
-                      aria-label={task.status === 'DONE' ? 'Mark incomplete' : 'Mark complete'}
-                    />
-                  </td>
-                  <td>
-                    <span className={`task-title ${task.status === 'DONE' ? 'done' : ''}`}>{task.title}</span>
-                  </td>
-                  <td>
-                    {task.tags.length > 0 ? (
-                      <span className="chip chip-blue" style={{ fontSize: 'var(--text-xs)' }}>{task.tags[0]}</span>
-                    ) : '—'}
-                  </td>
-                  <td style={{ fontSize: 'var(--text-sm)', color: 'var(--text-2)' }}>{fmt(task.dueAt)}</td>
-                  <td>
-                    {task.priority ? (
-                      <span className="chip" style={{ background: PRIORITY_COLOUR[task.priority] + '55', fontSize: 'var(--text-xs)' }}>
-                        {task.priority.toLowerCase()}
-                      </span>
-                    ) : '—'}
-                  </td>
-                  <td>
-                    <select
-                      className="form-input"
-                      style={{ padding: '4px 8px', fontSize: 'var(--text-xs)', width: 'auto' }}
-                      value={task.status}
-                      onChange={(e) => updateTask(task.id, { status: e.target.value as Task['status'] })}
-                      aria-label={`Status for ${task.title}`}
-                    >
-                      <option value="TODO">todo</option>
-                      <option value="IN_PROGRESS">in progress</option>
-                      <option value="DONE">done</option>
-                    </select>
-                  </td>
-                  <td>
-                    <button
-                      className="icon-btn"
-                      onClick={() => deleteTask(task.id)}
-                      aria-label={`Delete "${task.title}"`}
-                      style={{ color: 'var(--text-2)' }}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </td>
-                </tr>
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onUpdate={updateTask}
+                  onDelete={deleteTask}
+                />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
 
       {view === 'kanban' && tasks.length > 0 && (
         <DragDropContext onDragEnd={onDragEnd}>

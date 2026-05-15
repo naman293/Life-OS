@@ -5,6 +5,7 @@ import { X, Plus, Loader2 } from 'lucide-react';
 import { useCreateTask } from '@/hooks/useTasks';
 import { useCreateEvent } from '@/hooks/useEvents';
 import { useCreateHabit } from '@/hooks/useHabits';
+import { DatePicker } from '@/components/DatePicker';
 
 const COLOUR_OPTIONS = [
   { id: 'yellow',   label: 'Yellow',   bg: '#F3D76A' },
@@ -57,7 +58,7 @@ export function QuickAddModal({ onClose }: { onClose: () => void }) {
           notes: notes || undefined,
           status: 'TODO',
           priority: (priority as 'LOW' | 'MEDIUM' | 'HIGH') || undefined,
-          dueAt: dueAt ? new Date(dueAt).toISOString() : undefined,
+          dueAt: dueAt ? new Date(`${dueAt}T00:00:00`).toISOString() : undefined,
           tags: parsedTags,
           colourId: colour,
         });
@@ -142,8 +143,12 @@ export function QuickAddModal({ onClose }: { onClose: () => void }) {
             <>
               <div className="grid-2" style={{ gap: 'var(--space-3)' }}>
                 <div className="form-group">
-                  <label className="form-label" htmlFor="qa-due">Due date</label>
-                  <input id="qa-due" type="datetime-local" className="form-input" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
+                  <label className="form-label">Due date</label>
+                  <DatePicker
+                    value={dueAt}
+                    onChange={(v) => setDueAt(v ?? '')}
+                    placeholder="Pick a date"
+                  />
                 </div>
                 <div className="form-group">
                   <label className="form-label" htmlFor="qa-priority">Priority</label>

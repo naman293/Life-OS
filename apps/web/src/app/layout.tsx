@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
+import type { Metadata, Viewport } from "next";
+import { ClerkProvider, SignInButton, SignUpButton, Show, UserButton } from "@clerk/nextjs";
 import { SWRConfig } from "swr";
 import "./globals.css";
 import "./components.css";
@@ -11,7 +11,6 @@ export const metadata: Metadata = {
   title: "Life OS — Personal Productivity Dashboard",
   description: "Your personal command center for tasks, habits, calendar events, and productivity analytics.",
   manifest: "/manifest.json",
-  themeColor: "#121210",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -21,20 +20,23 @@ export const metadata: Metadata = {
     icon: "/icons/icon-192x192.png",
     apple: "/icons/apple-touch-icon.png",
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: "cover",
-  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#121210",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider afterSignOutUrl="/sign-in">
-      <html lang="en" suppressHydrationWarning>
-        <body suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
+      <body suppressHydrationWarning>
+        <ClerkProvider afterSignOutUrl="/sign-in">
+
           {/* Service Worker Registration */}
           <script
             dangerouslySetInnerHTML={{
@@ -61,8 +63,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <AppShell>{children}</AppShell>
             </PomodoroProvider>
           </SWRConfig>
-        </body>
-      </html>
-    </ClerkProvider>
+        </ClerkProvider>
+      </body>
+    </html>
   );
 }

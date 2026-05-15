@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { useUser } from '@clerk/nextjs';
 
 type Mode = 'FOCUS' | 'BREAK';
 
@@ -56,6 +57,7 @@ function playNotificationSound() {
 }
 
 export function PomodoroProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useUser();
   const [focusMins, setFocusMins] = useState(25);
   const [breakMins, setBreakMins] = useState(5);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
@@ -73,6 +75,18 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
                  setTimeout(() => {
                      playNotificationSound();
                      setIsActive(false);
+
+                     // XP Logic
+                     if (mode === 'FOCUS') {
+                       fetch('/api/focus', {
+                         method: 'POST',
+                         headers: { 'Content-Type': 'application/json' },
+                         body: JSON.stringify({ focusMins }),
+                       })
+                       .then(() => user?.reload())
+                       .catch(err => console.error('Failed to save focus XP:', err));
+                     }
+
                      const nextMode = mode === 'FOCUS' ? 'BREAK' : 'FOCUS';
                      setMode(nextMode);
                      setTimeLeft(nextMode === 'FOCUS' ? (focusMins * 60) : (breakMins * 60));
@@ -90,6 +104,7 @@ export function PomodoroProvider({ children }: { children: React.ReactNode }) {
       }, 1000);
     }
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isActive, mode, focusMins, breakMins]);
 
   const handleDurationChange = (type: Mode, val: number) => {

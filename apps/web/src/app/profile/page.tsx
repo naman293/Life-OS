@@ -57,12 +57,43 @@ export default function ProfilePage() {
     ? new Date(user.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
     : '—';
 
+  // Gamification Data
+  const focusXp = (user?.unsafeMetadata?.focusXp as number) || 0;
+  const focusLevel = (user?.unsafeMetadata?.focusLevel as number) || 1;
+  const xpInCurrentLevel = focusXp % 500;
+  const progressPct = (xpInCurrentLevel / 500) * 100;
+
   return (
     <div className="page-content">
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 'var(--space-6)', alignItems: 'start' }}>
 
         {/* ── Left: Profile Card ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-5)' }}>
+
+          {/* XP Progress Card */}
+          <div className="card" style={{ padding: 'var(--space-5)', position: 'relative', overflow: 'hidden', border: '3px solid #121210', boxShadow: '4px 4px 0px #121210' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 'var(--space-3)' }}>
+              <div>
+                <div style={{ fontSize: 'var(--text-xs)', color: 'var(--accent-red)', fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>Deep Work</div>
+                <div style={{ fontSize: 'var(--text-2xl)', fontWeight: 900, color: 'var(--text-1)', textShadow: '1px 1px 0px var(--accent-red-light)' }}>
+                  Level {focusLevel}
+                </div>
+              </div>
+              <div style={{ fontSize: 'var(--text-sm)', fontWeight: 800, color: 'var(--text-2)' }}>
+                {xpInCurrentLevel} / 500 XP
+              </div>
+            </div>
+            
+            <div style={{ height: 20, background: 'var(--bg-2)', borderRadius: 10, border: '2px solid #121210', overflow: 'hidden', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)' }}>
+              <div style={{ 
+                height: '100%', 
+                width: `${progressPct}%`, 
+                background: 'linear-gradient(90deg, #FF6B6B, #FFD93D)',
+                borderRight: '2px solid #121210',
+                transition: 'width 1s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }} />
+            </div>
+          </div>
 
           {/* Avatar + name */}
           <div className="card" style={{ textAlign: 'center', padding: 'var(--space-7)' }}>

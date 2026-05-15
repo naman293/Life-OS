@@ -17,7 +17,23 @@ const CAT_COLOURS: Record<string, string> = {
 
 export default function AnalyticsPage() {
   const [range, setRange] = useState<Range>('weekly');
-  const { analytics, isLoading } = useAnalytics(range);
+  const { analytics, isLoading, error } = useAnalytics(range);
+
+  if (error) {
+    return (
+      <div className="page-content">
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 300, gap: 12, color: 'var(--text-accent)' }}>
+          <div style={{ fontWeight: 'var(--fw-bold)', fontSize: 'var(--text-lg)' }}>Database Connection Failed</div>
+          <p style={{ color: 'var(--text-2)', maxWidth: 400, textAlign: 'center' }}>
+            We couldn't connect to the database right now. This can happen if the database is offline, or if your local environment cannot reach the host.
+          </p>
+          <div style={{ background: 'var(--bg-2)', padding: 'var(--space-3)', borderRadius: 8, fontSize: 'var(--text-xs)', opacity: 0.8, color: 'var(--text-3)', wordBreak: 'break-all' }}>
+            Error details: {error.message || String(error)}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading || !analytics) {
     return (

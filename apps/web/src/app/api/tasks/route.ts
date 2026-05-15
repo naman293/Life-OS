@@ -30,13 +30,26 @@ export async function GET(request: Request) {
   const tomorrow = new Date(today);
   tomorrow.setDate(today.getDate() + 1);
 
-  const where: Record<string, unknown> = { userId };
+  // Base filter: always scope to this user
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: Record<string, any> = { userId };
+
   if (status) where.status = status;
   if (search) where.title = { contains: search, mode: "insensitive" };
+
   if (due === "today") {
     where.dueAt = { gte: today, lt: tomorrow };
   } else if (due === "upcoming") {
     where.dueAt = { gte: tomorrow };
+  } else if (status !== "DONE") {
+    // Default "all active" view: hide tasks whose due date is strictly in the past.
+    // Tasks with no dueAt are always shown (they have no deadline).
+    // Completed tasks always shown regardless of due date.
+    where.OR = [
+      { dueAt: null },
+      { dueAt: { gte: today } },
+      { status: "DONE" },
+    ];
   }
 
   const tasks = await prisma.task.findMany({

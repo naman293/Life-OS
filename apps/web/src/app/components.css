@@ -875,3 +875,317 @@
   .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
   .page-content { padding: var(--space-4); }
 }
+
+/* ═══════════════════════════════════════════════
+   TASK TABLE — Full neo-brutalist task list table
+   ═══════════════════════════════════════════════ */
+
+.task-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.task-table thead tr {
+  border-bottom: 3px solid var(--text-0);
+}
+
+.task-table thead th {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Column widths */
+.task-table thead th:nth-child(1) { width: 48px; }   /* checkbox */
+.task-table thead th:nth-child(2) { width: auto; }    /* title — takes remaining */
+.task-table thead th:nth-child(3) { width: 120px; }  /* category */
+.task-table thead th:nth-child(4) { width: 170px; }  /* due date */
+.task-table thead th:nth-child(5) { width: 110px; }  /* priority */
+.task-table thead th:nth-child(6) { width: 140px; }  /* status */
+.task-table thead th:nth-child(7) { width: 48px; }   /* delete */
+
+.task-table tbody tr {
+  border-bottom: 1.5px solid var(--border-0);
+  transition: background var(--transition-fast);
+}
+
+.task-table tbody tr:hover {
+  background: var(--bg-1);
+}
+
+.task-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.task-table td {
+  padding: var(--space-3) var(--space-4);
+  vertical-align: middle;
+  font-size: var(--text-sm);
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Due date cell must not clip the picker trigger */
+.task-table td:nth-child(4) {
+  overflow: visible;
+  white-space: normal;
+}
+
+/* Done row strikethrough */
+.task-row-done td {
+  opacity: 0.55;
+}
+
+.task-row-done .task-title {
+  text-decoration: line-through;
+  color: var(--text-2);
+}
+
+/* Task title cell */
+.task-table .task-title {
+  font-weight: var(--fw-medium);
+  color: var(--text-0);
+  font-size: var(--text-sm);
+  transition: color var(--transition-fast);
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-table .task-title.done {
+  text-decoration: line-through;
+  color: var(--text-2);
+}
+
+/* ── Task Checkbox (neo-brutalist square) ── */
+.task-checkbox {
+  width: 20px;
+  height: 20px;
+  border: 2.5px solid var(--text-0);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  position: relative;
+  padding: 0;
+}
+
+.task-checkbox:hover {
+  background: var(--bg-1);
+  transform: scale(1.1);
+}
+
+.task-checkbox.done {
+  background: var(--text-0);
+  border-color: var(--text-0);
+}
+
+.task-checkbox.done::after {
+  content: '✓';
+  color: var(--bg-0);
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+/* ═══════════════════════════════════════════
+   DASHBOARD TASK FOCUS ITEMS
+   ═══════════════════════════════════════════ */
+
+.task-focus-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-0);
+  margin-bottom: var(--space-2);
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.task-focus-item:hover {
+  transform: translateX(2px);
+}
+
+.task-focus-num {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--text-0);
+  color: var(--bg-0);
+  font-size: 11px;
+  font-weight: var(--fw-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ── Dashboard task list row ── */
+.task-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border-bottom: 1px solid var(--border-0);
+  transition: background var(--transition-fast);
+  min-height: 40px;
+}
+
+.task-list-row:last-child {
+  border-bottom: none;
+}
+
+.task-list-row:hover {
+  background: var(--bg-1);
+}
+
+.task-list-row .task-title {
+  flex: 1;
+  font-size: var(--text-sm);
+  font-weight: var(--fw-medium);
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.task-list-row .task-title.done {
+  text-decoration: line-through;
+  color: var(--text-2);
+}
+
+/* ═══════════════════════════════════════════
+   EVENT LIST ROWS (dashboard)
+   ═══════════════════════════════════════════ */
+
+.event-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border-bottom: 1px solid var(--border-0);
+  transition: background var(--transition-fast);
+  min-height: 40px;
+}
+
+.event-list-row:last-child {
+  border-bottom: none;
+}
+
+.event-list-row:hover {
+  background: var(--bg-1);
+}
+
+.event-list-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 2px solid var(--text-0);
+}
+
+/* ═══════════════════════════════════════════
+   KANBAN BOARD (tasks page)
+   ═══════════════════════════════════════════ */
+
+.kanban-board {
+  display: flex;
+  gap: var(--space-5);
+  align-items: flex-start;
+  overflow-x: auto;
+  padding-bottom: var(--space-4);
+}
+
+.kanban-col {
+  flex: 1;
+  min-width: 260px;
+  background: var(--bg-1);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--border-0);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.kanban-col-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: var(--fw-bold);
+  color: var(--text-0);
+}
+
+.kanban-drop-zone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 80px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+  padding: 4px;
+}
+
+.kanban-drop-zone.drag-over {
+  background: var(--bg-2);
+  outline: 2px dashed var(--text-2);
+}
+
+.kanban-card {
+  background: var(--bg-2);
+  border: 2px solid var(--text-0);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  box-shadow: 3px 3px 0 var(--text-0);
+  cursor: grab;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.kanban-card:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--text-0);
+}
+
+.kanban-card.dragging {
+  cursor: grabbing;
+  transform: rotate(1.5deg) scale(1.03);
+  box-shadow: 8px 8px 0 var(--text-0);
+  opacity: 0.95;
+}
+
+.kanban-card-title {
+  font-size: var(--text-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--text-0);
+  line-height: 1.4;
+  margin-bottom: var(--space-2);
+}
+
+/* ── Card label ── */
+.card-label {
+  font-size: var(--text-xs);
+  font-weight: var(--fw-bold);
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+

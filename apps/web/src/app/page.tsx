@@ -1,8 +1,12 @@
 'use client';
 
+import { useState } from 'react';
+
 import { useTasks, useToggleTask } from '@/hooks/useTasks';
 import { useEvents } from '@/hooks/useEvents';
 import { useAnalytics } from '@/hooks/useAnalytics';
+import { useInbox } from '@/hooks/useInbox';
+import { ProcessInboxModal } from '@/components/ProcessInboxModal';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { TrendingUp, Zap, CheckCircle, Clock, Loader2 } from 'lucide-react';
 
@@ -29,6 +33,7 @@ export default function DashboardPage() {
   );
 
   const { analytics, isLoading: analyticsLoading } = useAnalytics('weekly');
+  const { inboxItems, isLoading: inboxLoading } = useInbox();
 
   const done        = tasks.filter((t) => t.status === 'DONE').length;
   const inProgress  = tasks.filter((t) => t.status === 'IN_PROGRESS').length;
@@ -49,7 +54,8 @@ export default function DashboardPage() {
     })
     .slice(0, 3);
 
-  const isLoading = tasksLoading || analyticsLoading;
+  const [processModalOpen, setProcessModalOpen] = useState(false);
+  const isLoading = tasksLoading || analyticsLoading || inboxLoading;
 
   return (
     <div className="page-content">
@@ -57,6 +63,39 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-2)', fontSize: 'var(--text-sm)', marginBottom: 'var(--space-4)' }}>
           <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} />
           Loading your data…
+        </div>
+      )}
+
+      {inboxItems && inboxItems.length > 0 && (
+        <div className="card" style={{ 
+          marginBottom: 'var(--space-5)', 
+          background: 'var(--accent-yellow)', 
+          color: '#121210',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          animation: 'slideUp 0.3s ease-out',
+          border: '4px solid #121210'
+        }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800 }}>Brain Dump: {inboxItems.length} Unprocessed Thoughts</h3>
+            <p style={{ margin: '4px 0 0', opacity: 0.8, fontSize: '0.9rem', fontWeight: 600 }}>Zero inbox helps clarity. Categorize them into tasks or notes.</p>
+          </div>
+          <button 
+            onClick={() => setProcessModalOpen(true)}
+            style={{
+              background: '#121210',
+              color: 'var(--accent-yellow)',
+              border: 'none',
+              padding: '8px 16px',
+              borderRadius: 8,
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '4px 4px 0 rgba(0,0,0,0.2)'
+            }}
+          >
+            Process Now
+          </button>
         </div>
       )}
 
@@ -195,6 +234,7 @@ export default function DashboardPage() {
           ))}
         </div>
       </div>
+      {processModalOpen && <ProcessInboxModal onClose={() => setProcessModalOpen(false)} />}
     </div>
   );
 }
